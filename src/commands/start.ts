@@ -1,6 +1,7 @@
 import { Context, InlineKeyboard } from "grammy";
 
 export async function startCommand(ctx: Context) {
+    console.log(`[Command] User @${ctx.from?.username} used /start`);
     const keyboard = new InlineKeyboard()
         .text("ℹ️ About", "about_data")
         .text("❓ Help", "help_data")

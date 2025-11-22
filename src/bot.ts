@@ -23,6 +23,9 @@ bot.on("message:text", async (ctx) => {
     const isMentioned = text.includes(`@${botUsername}`);
     const isReplyToBot = ctx.message.reply_to_message?.from?.id === ctx.me.id;
 
+    // Log the incoming message
+    console.log(`[Message] From @${ctx.from.username} (${chatType}): "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"`);
+
     if (isGroup && !isMentioned && !isReplyToBot) {
         return; // Ignore normal group chatter
     }
@@ -40,6 +43,7 @@ bot.on("message:text", async (ctx) => {
 // 5. Handle Button Clicks
 bot.on("callback_query:data", async (ctx) => {
     const data = ctx.callbackQuery.data;
+    console.log(`[Callback] User @${ctx.from.username} clicked: ${data}`);
 
     if (data === "about_data") {
         await ctx.answerCallbackQuery(); // Stop the loading animation
