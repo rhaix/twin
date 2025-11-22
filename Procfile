@@ -1,1 +1,1 @@
-worker: bun run src/bot.ts
+web: bun run src/bot.ts
