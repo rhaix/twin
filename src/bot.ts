@@ -1,5 +1,6 @@
 import { Bot } from "grammy";
 import { startCommand } from "./commands/start";
+import { generateResponse } from "./services/gemini";
 
 // 1. Load environment variables
 const token = process.env.BOT_TOKEN;
@@ -11,9 +12,29 @@ const bot = new Bot(token);
 // 3. Register Commands (Hook up your files here)
 bot.command("start", startCommand);
 
-// 4. Handle generic text (Optional)
-bot.on("message:text", (ctx) => {
-    ctx.reply(`You said: ${ctx.message.text}`);
+// 4. Handle generic text
+bot.on("message:text", async (ctx) => {
+    const text = ctx.message.text;
+    const chatType = ctx.chat.type;
+    const botUsername = ctx.me.username;
+
+    // Group Logic: Only reply if mentioned or replied to
+    const isGroup = chatType === "group" || chatType === "supergroup";
+    const isMentioned = text.includes(`@${botUsername}`);
+    const isReplyToBot = ctx.message.reply_to_message?.from?.id === ctx.me.id;
+
+    if (isGroup && !isMentioned && !isReplyToBot) {
+        return; // Ignore normal group chatter
+    }
+
+    // Show "typing..." status
+    await ctx.replyWithChatAction("typing");
+
+    // Generate AI Response
+    const response = await generateResponse(text);
+    await ctx.reply(response, {
+        reply_to_message_id: ctx.message.message_id, // Reply to the user
+    });
 });
 
 // 5. Handle Button Clicks
