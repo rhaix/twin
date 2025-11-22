@@ -10,7 +10,8 @@ export async function executeTrade(ctx: Context) {
         await ctx.api.editMessageText(
             ctx.chat!.id,
             loadingMsg.message_id,
-            response
+            response,
+            { parse_mode: "Markdown" }
         );
     } catch (error) {
         console.error("[Trade Error]", error);
