@@ -1,5 +1,6 @@
 import { Bot } from "grammy";
 import { startCommand } from "./commands/start";
+import { tradeCommand, executeTrade } from "./commands/trade";
 import { generateResponse } from "./services/gemini";
 
 // 1. Load environment variables
@@ -11,6 +12,7 @@ const bot = new Bot(token);
 
 // 3. Register Commands (Hook up your files here)
 bot.command("start", startCommand);
+bot.command("trade", tradeCommand);
 
 // 4. Handle generic text
 bot.on("message:text", async (ctx) => {
@@ -54,6 +56,9 @@ bot.on("callback_query:data", async (ctx) => {
     } else if (data === "status_data") {
         await ctx.answerCallbackQuery();
         await ctx.reply("🟢 Systems are operational.");
+    } else if (data === "trade_data") {
+        await ctx.answerCallbackQuery();
+        await executeTrade(ctx);
     } else {
         await ctx.answerCallbackQuery();
         await ctx.reply("Unknown button clicked.");

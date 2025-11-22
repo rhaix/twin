@@ -10,11 +10,14 @@ const ai = new GoogleGenAI({ apiKey: apiKey });
 export async function generateResponse(prompt: string): Promise<string> {
     if (!apiKey) return "⚠️ I need a GEMINI_API_KEY to think!";
 
+    console.log(`[Gemini] Request: ${prompt.substring(0, 100)}...`);
+
     try {
         const response = await ai.models.generateContent({
             model: "gemini-3-pro-preview",
             contents: prompt,
         });
+        console.log("[Gemini] Response received");
         return response.text || "No response text";
     } catch (error) {
         console.error("Gemini Error:", error);
