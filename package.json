@@ -4,11 +4,13 @@
   "type": "module",
   "scripts": {
     "start": "bun run src/bot.ts",
-    "dev": "bun run --watch src/bot.ts"
+    "dev": "bun run --watch --env-file=.env.local src/bot.ts"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
-    "grammy": "^1.30.0"
+    "grammy": "^1.30.0",
+    "yahoo-finance2": "^2.11.3",
+    "technicalindicators": "^3.1.0"
   },
   "devDependencies": {
     "@types/bun": "latest"
