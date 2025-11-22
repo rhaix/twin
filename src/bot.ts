@@ -2,6 +2,7 @@ import { Bot } from "grammy";
 import { startCommand } from "./commands/start";
 import { tradeCommand, executeTrade } from "./commands/trade";
 import { generateResponse } from "./services/gemini";
+import { safeEditMessage } from "./utils/telegram";
 
 // 1. Load environment variables
 const token = process.env.BOT_TOKEN;
@@ -20,17 +21,19 @@ bot.on("message:text", async (ctx) => {
     const chatType = ctx.chat.type;
     const botUsername = ctx.me.username;
 
-    // Group Logic: Only reply if mentioned or replied to
+    // Group Logic: Only reply if mentioned (not replies)
     const isGroup = chatType === "group" || chatType === "supergroup";
     const isMentioned = text.includes(`@${botUsername}`);
-    const isReplyToBot = ctx.message.reply_to_message?.from?.id === ctx.me.id;
 
     // Log the incoming message
     console.log(`[Message] From @${ctx.from.username} (${chatType}): "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"`);
 
-    if (isGroup && !isMentioned && !isReplyToBot) {
-        return; // Ignore normal group chatter
+    if (isGroup && !isMentioned) {
+        return; // Ignore normal group chatter and replies
     }
+
+    // Remove @botname from the text before sending to API
+    const cleanText = text.replace(new RegExp(`@${botUsername}`, 'g'), '').trim();
 
     // Show loading message
     const loadingMsg = await ctx.reply("🤔 Thinking...", {
@@ -39,16 +42,17 @@ bot.on("message:text", async (ctx) => {
 
     try {
         // Generate AI Response
-        const response = await generateResponse(text);
-        await ctx.api.editMessageText(
+        const response = await generateResponse(cleanText);
+        await safeEditMessage(
+            ctx.api,
             ctx.chat.id,
             loadingMsg.message_id,
-            response,
-            { parse_mode: "Markdown" }
+            response
         );
     } catch (error) {
         console.error("[AI Response Error]", error);
-        await ctx.api.editMessageText(
+        await safeEditMessage(
+            ctx.api,
             ctx.chat.id,
             loadingMsg.message_id,
             "❌ Sorry, I encountered an error. Please try again."
