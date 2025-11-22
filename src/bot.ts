@@ -32,14 +32,27 @@ bot.on("message:text", async (ctx) => {
         return; // Ignore normal group chatter
     }
 
-    // Show "typing..." status
-    await ctx.replyWithChatAction("typing");
-
-    // Generate AI Response
-    const response = await generateResponse(text);
-    await ctx.reply(response, {
-        reply_to_message_id: ctx.message.message_id, // Reply to the user
+    // Show loading message
+    const loadingMsg = await ctx.reply("🤔 Thinking...", {
+        reply_to_message_id: ctx.message.message_id,
     });
+
+    try {
+        // Generate AI Response
+        const response = await generateResponse(text);
+        await ctx.api.editMessageText(
+            ctx.chat.id,
+            loadingMsg.message_id,
+            response
+        );
+    } catch (error) {
+        console.error("[AI Response Error]", error);
+        await ctx.api.editMessageText(
+            ctx.chat.id,
+            loadingMsg.message_id,
+            "❌ Sorry, I encountered an error. Please try again."
+        );
+    }
 });
 
 // 5. Handle Button Clicks
