@@ -63,13 +63,13 @@ bot.on("callback_query:data", async (ctx) => {
 
     if (data === "about_data") {
         await ctx.answerCallbackQuery(); // Stop the loading animation
-        await ctx.reply("ℹ️ I am a bot built with Bun and Grammy!");
+        await ctx.reply("ℹ️ RoyK es pajaro");
     } else if (data === "help_data") {
         await ctx.answerCallbackQuery();
-        await ctx.reply("❓ Just type /start to see the menu.");
+        await ctx.reply("❓ No hay ayuda, RoyK es pajaro");
     } else if (data === "status_data") {
         await ctx.answerCallbackQuery();
-        await ctx.reply("🟢 Systems are operational.");
+        await ctx.reply("🟢 Si el estatus e que RoyK es pajaro, todo esta bien");
     } else if (data === "trade_data") {
         await ctx.answerCallbackQuery();
         await executeTrade(ctx);
