@@ -23,7 +23,7 @@ interface CryptoData {
  * Fetch real-time stock data with technical indicators
  */
 export async function getStockData(ticker: string): Promise<StockData> {
-    const yahooFinance = new YahooFinance();
+    const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey', 'ripHistorical'] });
     try {
         console.log(`[Market Data] Fetching stock data for ${ticker}`);
 
@@ -84,6 +84,8 @@ export async function getStockData(ticker: string): Promise<StockData> {
  * Fetch real-time cryptocurrency data
  */
 export async function getCryptoData(symbol: string): Promise<CryptoData> {
+
+    const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey', 'ripHistorical'] });
     try {
         console.log(`[Market Data] Fetching crypto data for ${symbol}`);
 

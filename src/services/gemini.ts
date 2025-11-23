@@ -72,10 +72,15 @@ export async function generateResponseWithTools(prompt: string): Promise<string>
         }] as ToolListUnion;
 
 
+        // Initialize history with the user's prompt
+        const history: any[] = [
+            { role: "user", parts: [{ text: prompt }] }
+        ];
+
         // Initial request using the new structure and model
         let response = await ai.models.generateContent({
             model: "gemini-3-pro-preview", // Updated model as requested
-            contents: prompt,
+            contents: history,
             config: {
                 tools: tools,
                 // responseMimeType: "application/json", // Uncomment if you want strict JSON output
@@ -84,7 +89,7 @@ export async function generateResponseWithTools(prompt: string): Promise<string>
         });
 
         let iterationCount = 0;
-        const maxIterations = 5;
+        const maxIterations = 10;
 
         // Extract function call and the SPECIFIC PART that contains it (needed for history)
         let functionCalls = response.functionCalls;
@@ -123,16 +128,14 @@ export async function generateResponseWithTools(prompt: string): Promise<string>
                 functionResult = { error: (err as Error).message };
             }
 
-            // Send function result back to Gemini
-            // CRITICAL: We must include the ORIGINAL function call part in the history, 
-            // because it contains the 'thought_signature' required by the model.
+            // Add the model's request (function call) and our response (function result) to history
+            history.push({ role: "model", parts: [functionCallPart] });
+            history.push({ role: "user", parts: [{ functionResponse: { name: functionCall.name, response: functionResult } }] });
+
+            // Send function result back to Gemini with FULL history
             response = await ai.models.generateContent({
                 model: "gemini-3-pro-preview", // Updated model
-                contents: [
-                    { role: "user", parts: [{ text: prompt }] },
-                    { role: "model", parts: [functionCallPart] },
-                    { role: "user", parts: [{ functionResponse: { name: functionCall.name, response: functionResult } }] }
-                ],
+                contents: history,
                 config: {
                     tools: tools,
                 },
@@ -149,6 +152,12 @@ export async function generateResponseWithTools(prompt: string): Promise<string>
 
         if (iterationCount >= maxIterations) {
             console.warn("[Gemini] Reached max function call iterations");
+            // Force a final response if we're stuck in a loop
+            history.push({ role: "user", parts: [{ text: "You have reached the maximum number of function calls. Please summarize the data you have collected so far. If you need more data, specify" }] });
+            response = await ai.models.generateContent({
+                model: "gemini-3-pro-preview",
+                contents: history,
+            });
         }
 
         console.log("[Gemini] Final response received");
