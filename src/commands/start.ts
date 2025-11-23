@@ -7,7 +7,7 @@ export async function startCommand(ctx: Context) {
         .text("❓ Help", "help_data")
         .row()
         .text("🟢 Status", "status_data")
-        .text("Trade", "trade_data");
+        .text("📊 Trade", "search_data");
 
     await ctx.reply("👋 Hola maldito pajaro! Ete bot es de trading y de lo pajaro que e RoyK!\n\nChoose an option:", {
         reply_markup: keyboard,

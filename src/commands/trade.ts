@@ -1,5 +1,5 @@
 import { Context } from "grammy";
-import { generateResponse } from "../services/gemini";
+import { generateResponseWithTools } from "../services/gemini";
 import { tradingPrompts } from "../constants/prompts";
 import { safeEditMessage } from "../utils/telegram";
 
@@ -8,7 +8,7 @@ export async function executeTrade(ctx: Context) {
 
     try {
         const fullPrompt = tradingPrompts.default + "\n\n" + tradingPrompts.responseFormat;
-        const response = await generateResponse(fullPrompt);
+        const response = await generateResponseWithTools(fullPrompt);
         await safeEditMessage(
             ctx.api,
             ctx.chat!.id,
