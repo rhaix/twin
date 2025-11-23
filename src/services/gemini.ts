@@ -167,3 +167,80 @@ export async function generateResponseWithTools(prompt: string): Promise<string>
         return "🧠 My brain hurts... (API Error)";
     }
 }
+
+/**
+ * Generate a response using Google Search grounding
+ * Note: Cannot combine Google Search with structured JSON output due to API limitations
+ * @param prompt The user's prompt
+ */
+export async function generateWithGoogleSearch(prompt: string): Promise<string | null> {
+    if (!apiKey) {
+        console.warn("⚠️ GEMINI_API_KEY is missing");
+        return null;
+    }
+
+    console.log(`[Gemini] Google Search Request: ${prompt.substring(0, 100)}...`);
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-3-pro-preview",
+            contents: prompt,
+            config: {
+                tools: [
+                    { googleSearch: {} }
+                ],
+            },
+        });
+
+        console.log("[Gemini] Search response received");
+        return response.text || null;
+    } catch (error) {
+        console.error("Gemini Search Error:", error);
+        return null;
+    }
+}
+
+/**
+ * Generate a structured response using a schema (without Google Search)
+ * @param prompt The user's prompt
+ * @param schema The Zod schema to validate the response against
+ */
+export async function generateStructuredResponse<T>(prompt: string, schema: z.ZodType<T>): Promise<T | null> {
+    if (!apiKey) {
+        console.warn("⚠️ GEMINI_API_KEY is missing");
+        return null;
+    }
+
+    console.log(`[Gemini] Structured Response Request: ${prompt.substring(0, 100)}...`);
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-3-pro-preview",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseJsonSchema: zodToJsonSchema(schema as any),
+            },
+        });
+
+        console.log("[Gemini] Structured response received");
+
+        if (response.text) {
+            const parsed = JSON.parse(response.text);
+            try {
+                return schema.parse(parsed);
+            } catch (error) {
+                // If parsing fails and it's an array, try the first element
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    return schema.parse(parsed[0]);
+                }
+                throw error;
+            }
+        }
+
+        return null;
+    } catch (error) {
+        console.error("Gemini Structured Response Error:", error);
+        return null;
+    }
+}

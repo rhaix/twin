@@ -1,6 +1,7 @@
 import { Bot } from "grammy";
 import { startCommand } from "./commands/start";
 import { tradeCommand, executeTrade } from "./commands/trade";
+import { searchCommand, executeSearch } from "./commands/search";
 import { generateResponse } from "./services/gemini";
 import { safeEditMessage } from "./utils/telegram";
 
@@ -14,6 +15,7 @@ const bot = new Bot(token);
 // 3. Register Commands (Hook up your files here)
 bot.command("start", startCommand);
 bot.command("trade", tradeCommand);
+bot.command("search", searchCommand);
 
 // 4. Handle generic text
 bot.on("message:text", async (ctx) => {
@@ -77,6 +79,9 @@ bot.on("callback_query:data", async (ctx) => {
     } else if (data === "trade_data") {
         await ctx.answerCallbackQuery();
         await executeTrade(ctx);
+    } else if (data === "search_data") {
+        await ctx.answerCallbackQuery();
+        await executeSearch(ctx);
     } else {
         await ctx.answerCallbackQuery();
         await ctx.reply("Unknown button clicked.");
