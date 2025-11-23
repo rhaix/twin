@@ -1,5 +1,5 @@
 import { Context } from "grammy";
-import { generateResponse } from "../services/gemini";
+import { generateWithGoogleSearch } from "../services/gemini";
 import { tradingPrompts } from "../constants/prompts";
 import { safeEditMessage } from "../utils/telegram";
 
@@ -7,28 +7,9 @@ export async function executeSearch(ctx: Context) {
     const loadingMsg = await ctx.reply("🔍 Analyzing market conditions...");
 
     try {
-        // Use the same prompt as /trade but without function calling tools
-        // This gives a different perspective - general market analysis vs real-time data
-        const searchPrompt = `You are a smart trading assistant analyzing current market conditions.
-
-Based on your knowledge and recent market trends, provide a brief trading analysis.
-
-Focus on:
-- Major stocks (TSLA, NVDA, AMD, PLTR) or crypto (BTC, ETH, SOL)
-- Current market sentiment and trends
-- Any high-probability trading opportunities you're aware of
-
-Format your response for Telegram using HTML tags (<b>bold</b>).
-
-If you identify a good trade setup, provide:
-• <b>Ticker</b> and direction (Long/Short)
-• <b>Entry, Stop Loss, and Take Profit</b> levels
-• <b>Confidence</b> level
-• Brief <b>reasoning</b>
-
-If market conditions aren't favorable, say: "Sorry my Handsome Kings, there's just no available trades"`;
-
-        const response = await generateResponse(searchPrompt);
+        // Use Google Search with the trading prompt
+        const fullPrompt = tradingPrompts.default + "\n\n" + tradingPrompts.responseFormat + "\n\nIMPORTANT: Use web search to find recent market news, sentiment, and price action before making your recommendation.";
+        const response = await generateWithGoogleSearch(fullPrompt);
 
         if (!response) {
             await safeEditMessage(
