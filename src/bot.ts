@@ -2,7 +2,7 @@ import { Bot } from "grammy";
 import { startCommand } from "./commands/start";
 import { tradeCommand, executeTrade } from "./commands/trade";
 import { searchCommand, executeSearch } from "./commands/search";
-import { generateResponse } from "./services/gemini";
+import { generateResponse, generateWithGoogleSearch } from "./services/gemini";
 import { safeEditMessage } from "./utils/telegram";
 
 // 1. Load environment variables
@@ -14,7 +14,7 @@ const bot = new Bot(token);
 
 // 3. Register Commands (Hook up your files here)
 bot.command("start", startCommand);
-bot.command("trade", tradeCommand);
+bot.command("trade", searchCommand);
 bot.command("search", searchCommand);
 
 // 4. Handle generic text
@@ -44,12 +44,12 @@ bot.on("message:text", async (ctx) => {
 
     try {
         // Generate AI Response
-        const response = await generateResponse(cleanText);
+        const response = await generateWithGoogleSearch(cleanText);
         await safeEditMessage(
             ctx.api,
             ctx.chat.id,
             loadingMsg.message_id,
-            response
+            response || "❌ Sorry, I got no response. Please try again."
         );
     } catch (error) {
         console.error("[AI Response Error]", error);
@@ -78,7 +78,7 @@ bot.on("callback_query:data", async (ctx) => {
         await ctx.reply("🟢 Si el estatus e que RoyK es pajaro, todo esta bien");
     } else if (data === "trade_data") {
         await ctx.answerCallbackQuery();
-        await executeTrade(ctx);
+        await executeSearch(ctx);
     } else if (data === "search_data") {
         await ctx.answerCallbackQuery();
         await executeSearch(ctx);
