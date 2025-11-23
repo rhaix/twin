@@ -1,4 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type, type ToolListUnion, type ToolUnion } from "@google/genai";
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 import { getStockData, getCryptoData } from "./marketData";
 
 const apiKey = process.env.GEMINI_API_KEY;
@@ -36,18 +38,17 @@ export async function generateResponseWithTools(prompt: string): Promise<string>
     console.log(`[Gemini] Request with tools: ${prompt.substring(0, 100)}...`);
 
     try {
-        // Define function declarations for the model
-        const tools = {
+        const tools = [{
             functionDeclarations: [
                 {
                     name: "get_stock_data",
-                    description: "Get real-time stock price, volume, and technical indicators (EMA, RSI) for a given ticker symbol. Use this for stocks like TSLA, NVDA, AMD, PLTR, MSTR, etc.",
+                    description: "Get real-time stock price, volume, EMA20, EMA50, and RSI for a ticker.",
                     parameters: {
-                        type: "object",
+                        type: Type.OBJECT,
                         properties: {
                             ticker: {
-                                type: "string",
-                                description: "Stock ticker symbol (e.g., TSLA, NVDA, AAPL, AMD, PLTR, MSTR)"
+                                type: Type.STRING,
+                                description: "Ticker symbol, e.g., TSLA"
                             }
                         },
                         required: ["ticker"]
@@ -55,71 +56,99 @@ export async function generateResponseWithTools(prompt: string): Promise<string>
                 },
                 {
                     name: "get_crypto_data",
-                    description: "Get real-time cryptocurrency price and 24-hour change. Use this for crypto symbols like BTC, ETH, SOL on weekends or when analyzing crypto markets.",
+                    description: "Get real-time crypto price and 24h change.",
                     parameters: {
-                        type: "object",
+                        type: Type.OBJECT,
                         properties: {
                             symbol: {
-                                type: "string",
-                                description: "Cryptocurrency symbol (e.g., BTC, ETH, SOL)"
+                                type: Type.STRING,
+                                description: "Crypto symbol, e.g., BTC"
                             }
                         },
                         required: ["symbol"]
                     }
                 }
             ]
-        };
+        }] as ToolListUnion;
 
-        // Initial request with tools enabled
+
+        // Initial request using the new structure and model
         let response = await ai.models.generateContent({
-            model: "gemini-3-pro-preview",
+            model: "gemini-3-pro-preview", // Updated model as requested
             contents: prompt,
-            tools: [tools],
+            config: {
+                tools: tools,
+                // responseMimeType: "application/json", // Uncomment if you want strict JSON output
+                // responseJsonSchema: zodToJsonSchema(yourSchema), // Uncomment to enforce schema
+            },
         });
 
         let iterationCount = 0;
-        const maxIterations = 5; // Prevent infinite loops
+        const maxIterations = 5;
 
-        // Handle function calling loop
-        while (response.functionCalls && response.functionCalls.length > 0 && iterationCount < maxIterations) {
+        // Extract function call and the SPECIFIC PART that contains it (needed for history)
+        let functionCalls = response.functionCalls;
+        let functionCallPart = response.candidates?.[0]?.content?.parts?.find((p: any) => p.functionCall);
+
+        // Fallback extraction
+        if (!functionCalls && functionCallPart && functionCallPart.functionCall) {
+            functionCalls = [functionCallPart.functionCall];
+        }
+
+        while (functionCalls && functionCalls.length > 0 && iterationCount < maxIterations) {
             iterationCount++;
-            console.log(`[Gemini] Function call iteration ${iterationCount}`);
+            const functionCall = functionCalls[0];
 
-            const functionCall = response.functionCalls[0];
-            console.log(`[Gemini] Calling function: ${functionCall.name} with args:`, functionCall.args);
-
-            // Execute the requested function
-            let functionResponse: any;
-            try {
-                if (functionCall.name === "get_stock_data") {
-                    const data = await getStockData(functionCall.args.ticker);
-                    functionResponse = { content: data };
-                } else if (functionCall.name === "get_crypto_data") {
-                    const data = await getCryptoData(functionCall.args.symbol);
-                    functionResponse = { content: data };
-                } else {
-                    functionResponse = { error: `Unknown function: ${functionCall.name}` };
-                }
-            } catch (error) {
-                functionResponse = { error: (error as Error).message };
+            if (!functionCall) break;
+            if (!functionCallPart) {
+                console.error("[Gemini] Function call part not found in response parts");
+                break;
             }
 
-            console.log(`[Gemini] Function response:`, functionResponse);
+            console.log(`[Gemini] Function call iteration ${iterationCount}: ${functionCall.name}`);
+            console.log(`[Gemini] Args:`, functionCall.args);
+
+            // Execute the requested function
+            let functionResult: any;
+            try {
+                const args = functionCall.args as any;
+                if (functionCall.name === "get_stock_data") {
+                    functionResult = await getStockData(args.ticker);
+                } else if (functionCall.name === "get_crypto_data") {
+                    functionResult = await getCryptoData(args.symbol);
+                } else {
+                    functionResult = { error: `Unknown function ${functionCall.name}` };
+                }
+            } catch (err) {
+                functionResult = { error: (err as Error).message };
+            }
 
             // Send function result back to Gemini
+            // CRITICAL: We must include the ORIGINAL function call part in the history, 
+            // because it contains the 'thought_signature' required by the model.
             response = await ai.models.generateContent({
-                model: "gemini-3-pro-preview",
+                model: "gemini-3-pro-preview", // Updated model
                 contents: [
                     { role: "user", parts: [{ text: prompt }] },
-                    { role: "model", parts: [{ functionCall: functionCall }] },
-                    { role: "function", parts: [{ functionResponse: { name: functionCall.name, response: functionResponse } }] }
+                    { role: "model", parts: [functionCallPart] },
+                    { role: "user", parts: [{ functionResponse: { name: functionCall.name, response: functionResult } }] }
                 ],
-                tools: [tools],
+                config: {
+                    tools: tools,
+                },
             });
+
+            // Update for next iteration
+            functionCalls = response.functionCalls;
+            functionCallPart = response.candidates?.[0]?.content?.parts?.find((p: any) => p.functionCall);
+
+            if (!functionCalls && functionCallPart && functionCallPart.functionCall) {
+                functionCalls = [functionCallPart.functionCall];
+            }
         }
 
         if (iterationCount >= maxIterations) {
-            console.warn("[Gemini] Max function call iterations reached");
+            console.warn("[Gemini] Reached max function call iterations");
         }
 
         console.log("[Gemini] Final response received");

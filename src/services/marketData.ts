@@ -1,4 +1,4 @@
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from "yahoo-finance2";
 import { EMA, RSI } from 'technicalindicators';
 
 interface StockData {
@@ -23,6 +23,7 @@ interface CryptoData {
  * Fetch real-time stock data with technical indicators
  */
 export async function getStockData(ticker: string): Promise<StockData> {
+    const yahooFinance = new YahooFinance();
     try {
         console.log(`[Market Data] Fetching stock data for ${ticker}`);
 
@@ -39,9 +40,9 @@ export async function getStockData(ticker: string): Promise<StockData> {
             period2: endDate,
             interval: '1d'
         });
-
+        const histories = await yahooFinance.quote
         // Extract closing prices for indicators
-        const closePrices = history.map(h => h.close);
+        const closePrices = history.map((h: any) => h.close);
 
         // Calculate technical indicators
         let ema20, ema50, rsi;
